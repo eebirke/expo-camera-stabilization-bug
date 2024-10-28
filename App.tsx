@@ -1,11 +1,92 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import {
+  CameraView,
+  CameraType,
+  useCameraPermissions,
+  useMicrophonePermissions,
+} from "expo-camera";
+import { useCallback, useRef, useState } from "react";
+import { Button, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function App() {
+  const [facing, setFacing] = useState<CameraType>("back");
+  const [permission, requestPermission] = useCameraPermissions();
+  const [microphone, requestMicrophonePermission] = useMicrophonePermissions();
+  const [isRecording, setIsRecording] = useState(false);
+  const cameraRef = useRef<CameraView>(null);
+
+  const startRecording = useCallback(() => {
+    cameraRef.current
+      ?.recordAsync()
+      .then((r) => {
+        setIsRecording(false);
+        console.log("done", r);
+      })
+      .catch((e: any) => {
+        console.error(e);
+        setIsRecording(false);
+      });
+    setIsRecording(true);
+  }, []);
+
+  const stopRecording = useCallback(() => {
+    cameraRef.current?.stopRecording();
+  }, []);
+
+  if (!permission || !microphone) {
+    // Camera permissions are still loading.
+    return <View />;
+  }
+
+  if (!permission.granted) {
+    // Camera permissions are not granted yet.
+    return (
+      <View style={styles.container}>
+        <Text style={styles.message}>
+          We need your permission to show the camera
+        </Text>
+        <Button onPress={requestPermission} title="grant permission" />
+      </View>
+    );
+  }
+
+  if (!microphone.granted) {
+    // Microphone permissions are not granted yet.
+    return (
+      <View style={styles.container}>
+        <Text style={styles.message}>
+          We need your permission to record audio
+        </Text>
+        <Button
+          onPress={requestMicrophonePermission}
+          title="grant permission"
+        />
+      </View>
+    );
+  }
+
+  function toggleCameraFacing() {
+    setFacing((current) => (current === "back" ? "front" : "back"));
+  }
+
   return (
     <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
+      <CameraView style={styles.camera} facing={facing} ref={cameraRef} mode="video">
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
+            <Text style={styles.text}>Flip Camera</Text>
+          </TouchableOpacity>
+          {!isRecording && (
+            <TouchableOpacity style={styles.button} onPress={startRecording}>
+              <Text style={styles.text}>Start recording</Text>
+            </TouchableOpacity>
+          )}
+          {isRecording && (
+            <TouchableOpacity style={styles.button} onPress={stopRecording}>
+              <Text style={styles.text}>Stop recording</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </CameraView>
     </View>
   );
 }
@@ -13,8 +94,29 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: "center",
+  },
+  message: {
+    textAlign: "center",
+    paddingBottom: 10,
+  },
+  camera: {
+    flex: 1,
+  },
+  buttonContainer: {
+    flex: 1,
+    flexDirection: "row",
+    backgroundColor: "transparent",
+    margin: 64,
+  },
+  button: {
+    flex: 1,
+    alignSelf: "flex-end",
+    alignItems: "center",
+  },
+  text: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "white",
   },
 });
